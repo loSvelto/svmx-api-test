@@ -3,9 +3,7 @@
 # ~~~~
 
 # Home page
-GET     /                           controllers.Application.index(code ?= null)
-
-GET     /search                     controllers.Application.index(code ?= null,country: Option[String])
+GET     /                           controllers.Application.index(code ?= null, country ?= null)
 
 GET     /setup                      controllers.Application.setup()
 
