@@ -20,7 +20,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 public class Application extends Controller {
-
     @Inject
     private Force force;
 
@@ -42,21 +41,20 @@ public class Application extends Controller {
         if (isSetup()) {
             if (code == null) {
                 // start oauth
-                final String url = "https://test.salesforce.com/services/oauth2/authorize?response_type=code"
-                        + "&client_id=" + force.consumerKey()
-                        + "&redirect_uri=" + oauthCallbackUrl(request());
+                final String url = "https://login.salesforce.com/services/oauth2/authorize?response_type=code" +
+                        "&client_id=" + force.consumerKey() +
+                        "&redirect_uri=" + oauthCallbackUrl(request());
                 return CompletableFuture.completedFuture(redirect(url));
             } else {
-                return force.getToken(code, oauthCallbackUrl(request())).thenCompose(authInfo
-                        -> force.getAccounts(authInfo).thenApply(accounts
-                                -> ok(index.render(accounts))
+                return force.getToken(code, oauthCallbackUrl(request())).thenCompose(authInfo ->
+                        force.getAccounts(authInfo).thenApply(accounts ->
+                                ok(index.render(accounts))
                         )
                 ).exceptionally(error -> {
-                    if (error.getCause() instanceof Force.AuthException) {
+                    if (error.getCause() instanceof Force.AuthException)
                         return redirect(routes.Application.index(null));
-                    } else {
+                    else
                         return internalServerError(error.getMessage());
-                    }
                 });
             }
         } else {
@@ -73,9 +71,9 @@ public class Application extends Controller {
         }
     }
 
+
     @Singleton
     public static class Force {
-
         @Inject
         WSClient ws;
 
@@ -91,7 +89,7 @@ public class Application extends Controller {
         }
 
         CompletionStage<AuthInfo> getToken(String code, String redirectUrl) {
-            final CompletionStage<WSResponse> responsePromise = ws.url("https://test.salesforce.com/services/oauth2/token")
+            final CompletionStage<WSResponse> responsePromise = ws.url("https://login.salesforce.com/services/oauth2/token")
                     .addQueryParameter("grant_type", "authorization_code")
                     .addQueryParameter("code", code)
                     .addQueryParameter("client_id", consumerKey())
@@ -114,23 +112,20 @@ public class Application extends Controller {
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         public static class Account {
-
             public String Id;
             public String Name;
             public String Type;
             public String Industry;
-            public String BillingCountry;
+            public String Rating;
         }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         public static class QueryResultAccount {
-
             public List<Account> records;
         }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         public static class AuthInfo {
-
             @JsonProperty("access_token")
             public String accessToken;
 
@@ -139,17 +134,15 @@ public class Application extends Controller {
         }
 
         public static class AuthException extends Exception {
-
             AuthException(String message) {
                 super(message);
             }
         }
 
         CompletionStage<List<Account>> getAccounts(AuthInfo authInfo) {
-
-            CompletionStage<WSResponse> responsePromise = ws.url(authInfo.instanceUrl + "/services/data/v44.0/query/")
+            CompletionStage<WSResponse> responsePromise = ws.url(authInfo.instanceUrl + "/services/data/v34.0/query/")
                     .addHeader("Authorization", "Bearer " + authInfo.accessToken)
-                    .addQueryParameter("q", "SELECT Id, Name, Type, Industry, BillingCountry FROM Account")
+                    .addQueryParameter("q", "SELECT Id, Name, Type, Industry, Rating FROM Account")
                     .get();
 
             return responsePromise.thenCompose(response -> {
