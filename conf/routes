@@ -5,6 +5,8 @@
 # Home page
 GET     /                           controllers.Application.index(code ?= null)
 
+GET     /search                     controllers.Application.index(code ?= null,country: Option[String])
+
 GET     /setup                      controllers.Application.setup()
 
 # Map static resources from the /public folder to the /assets URL path
