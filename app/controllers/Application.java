@@ -116,7 +116,7 @@ public class Application extends Controller {
             public String Name;
             public String Type;
             public String Industry;
-            public String Country;
+            public String BillingCountry;
         }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
