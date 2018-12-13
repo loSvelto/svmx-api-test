@@ -38,7 +38,7 @@ public class Application extends Controller {
         return (request.secure() ? "https" : "http") + "://" + request.host();
     }
 
-    public CompletionStage<Result> index(String code) {
+    public CompletionStage<Result> index(String code, String country) {
         if (isSetup()) {
             if (code == null) {
                 // start oauth
@@ -48,7 +48,7 @@ public class Application extends Controller {
                 return CompletableFuture.completedFuture(redirect(url));
             } else {
                 return force.getToken(code, oauthCallbackUrl(request())).thenCompose(authInfo
-                        -> force.getAccounts(authInfo, null).thenApply(accounts
+                        -> force.getAccounts(authInfo, country).thenApply(accounts
                                 -> ok(index.render(accounts))
                         )
                 ).exceptionally(error -> {
@@ -62,21 +62,6 @@ public class Application extends Controller {
         } else {
             return CompletableFuture.completedFuture(redirect(routes.Application.setup()));
         }
-    }
-
-    public CompletionStage<Result> search(String code, String country) {
-        return force.getToken(code, oauthCallbackUrl(request())).thenCompose(authInfo
-                -> force.getAccounts(authInfo, country).thenApply(accounts
-                        -> ok(index.render(accounts))
-                )
-        ).exceptionally(error -> {
-            if (error.getCause() instanceof Force.AuthException) {
-                return redirect(routes.Application.index(null));
-            } else {
-                return internalServerError(error.getMessage());
-            }
-        });
-
     }
 
     public Result setup() {
