@@ -162,7 +162,7 @@ public class Application extends Controller {
 
         CompletionStage<List<Account>> getAccounts(AuthInfo authInfo, String country) {
 
-            String where = country == null ? "" : " WHERE BillingCountry = \"" + country + "\"";
+            String where = " WHERE BillingCountry = \"" + country + "\"";
 
             CompletionStage<WSResponse> responsePromise = ws.url(authInfo.instanceUrl + "/services/data/v44.0/query/")
                     .addHeader("Authorization", "Bearer " + authInfo.accessToken)
