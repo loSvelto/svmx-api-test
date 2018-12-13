@@ -37,7 +37,7 @@ public class Application extends Controller {
         return (request.secure() ? "https" : "http") + "://" + request.host();
     }
 
-    public CompletionStage<Result> index(String code) {
+    public CompletionStage<Result> index(String code, String country) {
         if (isSetup()) {
             if (code == null) {
                 // start oauth
