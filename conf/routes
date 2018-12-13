@@ -3,7 +3,7 @@
 # ~~~~
 
 # Home page
-GET     /:code                           controllers.Application.index(code ?= null)
+GET     /:code                       controllers.Application.index(code:Option[String])
 
 #GET     /search/:country            controllers.Application.search(country ?= null)
 
