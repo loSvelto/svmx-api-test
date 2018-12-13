@@ -37,7 +37,7 @@ public class Application extends Controller {
         return (request.secure() ? "https" : "http") + "://" + request.host();
     }
 
-    public CompletionStage<Result> index(String code, String country) {
+    public CompletionStage<Result> index(String code) {
         if (isSetup()) {
             if (code == null) {
                 // start oauth
@@ -47,7 +47,7 @@ public class Application extends Controller {
                 return CompletableFuture.completedFuture(redirect(url));
             } else {
                 return force.getToken(code, oauthCallbackUrl(request())).thenCompose(authInfo ->
-                        force.getAccounts(authInfo, country).thenApply(accounts ->
+                        force.getAccounts(authInfo, "日本").thenApply(accounts ->
                                 ok(index.render(accounts))
                         )
                 ).exceptionally(error -> {
