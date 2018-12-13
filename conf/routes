@@ -3,7 +3,7 @@
 # ~~~~
 
 # Home page
-GET     /:country                         controllers.Application.index(code ?= null, country:java.util.Optional[String])
+GET     /                           controllers.Application.index(code ?= null)
 
 GET     /setup                      controllers.Application.setup()
 
