@@ -38,32 +38,6 @@ public class Application extends Controller {
         return (request.secure() ? "https" : "http") + "://" + request.host();
     }
 
-    public CompletionStage<Result> index2(String code) {
-        if (isSetup()) {
-            if (code == null) {
-                // start oauth
-                final String url = "https://test.salesforce.com/services/oauth2/authorize?response_type=code"
-                        + "&client_id=" + force.consumerKey()
-                        + "&redirect_uri=" + oauthCallbackUrl(request());
-                return CompletableFuture.completedFuture(redirect(url));
-            } else {
-                return force.getToken(code, oauthCallbackUrl(request())).thenCompose(authInfo
-                        -> force.getAccounts(authInfo).thenApply(accounts
-                                -> ok(index.render(accounts))
-                        )
-                ).exceptionally(error -> {
-                    if (error.getCause() instanceof Force.AuthException) {
-                        return redirect(routes.Application.index(null));
-                    } else {
-                        return internalServerError(error.getMessage());
-                    }
-                });
-            }
-        } else {
-            return CompletableFuture.completedFuture(redirect(routes.Application.setup()));
-        }
-    }
-
     public CompletionStage<Result> index(String code) {
         if (code == null) {
             // start oauth
@@ -135,6 +109,8 @@ public class Application extends Controller {
                 }
             });
         }
+        
+        AuthInfo getAuthInfo () {return token;}
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         public static class Account {
