@@ -24,17 +24,7 @@ public class Application extends Controller {
     @Inject
     private Force force;
 
-    private boolean isSetup() {
-        try {
-            force.consumerKey();
-            force.consumerSecret();
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private String oauthCallbackUrl(Http.Request request) {
+       private String oauthCallbackUrl(Http.Request request) {
         return (request.secure() ? "https" : "http") + "://" + request.host();
     }
 
@@ -46,7 +36,7 @@ public class Application extends Controller {
                     + "&redirect_uri=" + oauthCallbackUrl(request());
             return CompletableFuture.completedFuture(redirect(url));
         } else {
-            return force.getToken(code, oauthCallbackUrl(request())).thenRunAsync(
+            return force.getToken(code, oauthCallbackUrl(request())).thenApply(
                     ok(index.render())
             ).exceptionally(error -> {
                 if (error.getCause() instanceof Force.AuthException) {
@@ -55,17 +45,6 @@ public class Application extends Controller {
                     return internalServerError(error.getMessage());
                 }
             });
-        }
-    }
-
-    
-
-    public Result setup() {
-        if (isSetup()) {
-            return redirect(routes.Application.index(null));
-        } else {
-            final String maybeHerokuAppName = request().host().split(".herokuapp.com")[0].replaceAll(request().host(), "");
-            return ok(setup.render(maybeHerokuAppName));
         }
     }
 
@@ -78,7 +57,7 @@ public class Application extends Controller {
         @Inject
         Config config;
 
-        AuthInfo token;
+         CompletableFuture<AuthInfo> token;
 
         String consumerKey() {
             return config.getString("consumer.key");
@@ -88,7 +67,7 @@ public class Application extends Controller {
             return config.getString("consumer.secret");
         }
 
-        CompletionStage<AuthInfo> getToken(String code, String redirectUrl) {
+        void getToken(String code, String redirectUrl) {
             final CompletionStage<WSResponse> responsePromise = ws.url("https://test.salesforce.com/services/oauth2/token")
                     .addQueryParameter("grant_type", "authorization_code")
                     .addQueryParameter("code", code)
@@ -97,20 +76,16 @@ public class Application extends Controller {
                     .addQueryParameter("redirect_uri", redirectUrl)
                     .execute(Http.HttpVerbs.POST);
 
-            return responsePromise.thenCompose(response -> {
+            responsePromise.thenCompose(response -> {
                 final JsonNode jsonNode = response.asJson();
 
-                if (jsonNode.has("error")) {
-                    CompletableFuture<AuthInfo> completableFuture = new CompletableFuture<>();
-                    completableFuture.completeExceptionally(new AuthException(jsonNode.get("error").textValue()));
-                    return completableFuture;
-                } else {
-                    return CompletableFuture.completedFuture(Json.fromJson(jsonNode, AuthInfo.class));
+                
+                    token = CompletableFuture.completedFuture(Json.fromJson(jsonNode, AuthInfo.class));
                 }
-            });
+            );
         }
         
-        AuthInfo getAuthInfo () {return token;}
+        CompletableFuture<AuthInfo> getAuthInfo () {return token;}
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         public static class Account {
