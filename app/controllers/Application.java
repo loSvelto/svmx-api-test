@@ -46,8 +46,8 @@ public class Application extends Controller {
                     + "&redirect_uri=" + oauthCallbackUrl(request());
             return CompletableFuture.completedFuture(redirect(url));
         } else {
-            return force.getToken(code, oauthCallbackUrl(request())).thenApply(()
-                    -> ok(index.render())
+            return force.getToken(code, oauthCallbackUrl(request())).thenRunAsync(
+                    ok(index.render())
             ).exceptionally(error -> {
                 if (error.getCause() instanceof Force.AuthException) {
                     return redirect(routes.Application.index(null));
