@@ -11,7 +11,7 @@ import play.mvc.Controller;
 import play.mvc.Http;
 import play.mvc.Result;
 import views.html.index;
-import views.html.setup;
+import views.html.accounts;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -24,30 +24,29 @@ public class Application extends Controller {
     @Inject
     private Force force;
 
-       private String oauthCallbackUrl(Http.Request request) {
+    private String oauthCallbackUrl(Http.Request request) {
         return (request.secure() ? "https" : "http") + "://" + request.host();
     }
 
-    public CompletionStage<Result> index(String code) {
-        if (code == null) {
+    public Result index(String code) {
+        if (code == null && force.getAuthInfo() == null) {
             // start oauth
             final String url = "https://test.salesforce.com/services/oauth2/authorize?response_type=code"
                     + "&client_id=" + force.consumerKey()
                     + "&redirect_uri=" + oauthCallbackUrl(request());
-            return CompletableFuture.completedFuture(redirect(url));
+            return redirect(url);
         } else {
-            return force.getToken(code, oauthCallbackUrl(request())).thenApply(
-                    ok(index.render())
-            ).exceptionally(error -> {
-                if (error.getCause() instanceof Force.AuthException) {
-                    return redirect(routes.Application.index(null));
-                } else {
-                    return internalServerError(error.getMessage());
-                }
-            });
+            force.getToken(code, oauthCallbackUrl(request()));
+            return ok(index.render());
         }
     }
 
+    public CompletionStage<Result> accounts (String country) {
+        return force.getAuthInfo().thenCompose(authInfo -> 
+                force.getAccounts(authInfo, country)).thenApply( accountList ->
+                ok(accounts.render(accountList)));
+    }
+    
     @Singleton
     public static class Force {
 
@@ -57,7 +56,7 @@ public class Application extends Controller {
         @Inject
         Config config;
 
-         CompletableFuture<AuthInfo> token;
+        CompletableFuture<AuthInfo> token;
 
         String consumerKey() {
             return config.getString("consumer.key");
@@ -67,7 +66,7 @@ public class Application extends Controller {
             return config.getString("consumer.secret");
         }
 
-        void getToken(String code, String redirectUrl) {
+        CompletionStage<Void> getToken(String code, String redirectUrl) {
             final CompletionStage<WSResponse> responsePromise = ws.url("https://test.salesforce.com/services/oauth2/token")
                     .addQueryParameter("grant_type", "authorization_code")
                     .addQueryParameter("code", code)
@@ -79,13 +78,16 @@ public class Application extends Controller {
             responsePromise.thenCompose(response -> {
                 final JsonNode jsonNode = response.asJson();
 
-                
-                    token = CompletableFuture.completedFuture(Json.fromJson(jsonNode, AuthInfo.class));
-                }
+                token = CompletableFuture.completedFuture(Json.fromJson(jsonNode, AuthInfo.class));
+                return token;
+            }
             );
+            return new CompletableFuture<>();
         }
-        
-        CompletableFuture<AuthInfo> getAuthInfo () {return token;}
+
+        CompletableFuture<AuthInfo> getAuthInfo() {
+            return token;
+        }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         public static class Account {
@@ -120,10 +122,11 @@ public class Application extends Controller {
             }
         }
 
-        CompletionStage<List<Account>> getAccounts(AuthInfo authInfo) {
+        CompletionStage<List<Account>> getAccounts(AuthInfo authInfo, String country) {
             CompletionStage<WSResponse> responsePromise = ws.url(authInfo.instanceUrl + "/services/data/v44.0/query/")
                     .addHeader("Authorization", "Bearer " + authInfo.accessToken)
-                    .addQueryParameter("q", "SELECT Id, Name, Type, Industry, BillingCountry FROM Account")
+                    .addQueryParameter("q", "SELECT Id, Name, Type, Industry, BillingCountry FROM Account"
+                    + (country == null ? "" : " where BillingCountry='" + country + "'"))
                     .get();
 
             return responsePromise.thenCompose(response -> {
