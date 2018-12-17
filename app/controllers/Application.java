@@ -29,7 +29,7 @@ public class Application extends Controller {
     }
 
     public Result index(String code) {
-        if (code == null && force.getAuthInfo() == null) {
+        if (code == null) {
             // start oauth
             final String url = "https://test.salesforce.com/services/oauth2/authorize?response_type=code"
                     + "&client_id=" + force.consumerKey()
