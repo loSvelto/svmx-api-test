@@ -12,3 +12,5 @@
 /manifest.mf
 /build.xml
 /public/
+/sbt.cmd
+/conf/application.conf
