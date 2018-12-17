@@ -12,6 +12,7 @@ import play.mvc.Http;
 import play.mvc.Result;
 import views.html.index;
 import views.html.accounts;
+import views.html.account;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -43,8 +44,14 @@ public class Application extends Controller {
 
     public CompletionStage<Result> accounts (String country) {
         return force.getAuthInfo().thenCompose(authInfo -> 
-                force.getAccounts(authInfo, country)).thenApply( accountList ->
+                force.getAccounts(authInfo, country, null)).thenApply( accountList ->
                 ok(accounts.render(accountList)));
+    }
+    
+    public CompletionStage<Result> account (String id) {
+        return force.getAuthInfo().thenCompose(authInfo -> 
+                force.getAccounts(authInfo, null, id)).thenApply( accountList ->
+                ok(account.render(accountList)));
     }
     
     @Singleton
@@ -122,11 +129,12 @@ public class Application extends Controller {
             }
         }
 
-        CompletionStage<List<Account>> getAccounts(AuthInfo authInfo, String country) {
+        CompletionStage<List<Account>> getAccounts(AuthInfo authInfo, String country, String id) {
             CompletionStage<WSResponse> responsePromise = ws.url(authInfo.instanceUrl + "/services/data/v44.0/query/")
                     .addHeader("Authorization", "Bearer " + authInfo.accessToken)
                     .addQueryParameter("q", "SELECT Id, Name, Type, Industry, BillingCountry FROM Account"
-                    + (country == null ? "" : " where BillingCountry='" + country + "'"))
+                    + ((country == null) || (country == "") ? "" : " where BillingCountry='" + country + "'")
+                    + (id == null ? "" : " where Id='" + id + "'"))
                     .get();
 
             return responsePromise.thenCompose(response -> {

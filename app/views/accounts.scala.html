@@ -14,7 +14,7 @@
         </tr>
         @accounts.map { account =>
             <tr>
-                <td>@account.Id</td>
+                <td><a href="account/@account.Id">@account.Id</a></td>
                 <td>@account.Name</td>
                 <td>@account.Type</td>
                 <td>@account.Industry</td>

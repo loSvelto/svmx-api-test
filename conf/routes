@@ -7,5 +7,7 @@ GET     /                           controllers.Application.index(code ?= null)
 
 GET     /accounts                   controllers.Application.accounts(country ?= null)
 
+GET     /account/:id                controllers.Application.account(id:String)
+
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)

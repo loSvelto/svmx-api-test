@@ -1,0 +1,18 @@
+@(accounts: List[Application.Force.Account])
+
+@main {
+
+<h2>Account details</h2>
+
+<table class="table">
+
+    @accounts.map { account =>
+    <tr><td><b>Account</b></td><td>@account.Id</td></tr>
+    <tr><td><b>Name</b></td><td>@account.Name</td></tr>
+    <tr><td><b>Type</b></td><td>@account.Type</td></tr>
+    <tr><td><b>Industry</b></td><td>@account.Industry</td></tr>
+    <tr><td><b>Country</b></td><td>@account.BillingCountry</td></tr>
+    }
+</table>
+
+}
