@@ -94,7 +94,7 @@ if "%~1"=="shell" (
   )
 )
 
-set SBT_OPTS=-Xms512M -Xmx1024M -Xss1M -XX:MetaspaceSize=64M -XX:MaxMetaspaceSize=256M -XX:+CMSClassUnloadingEnabled -Dhttp.proxyHost=proxygate2.nic.nec.co.jp -Dhttp.proxyPort=8080 -Dhttps.proxyHost=proxygate2.nic.nec.co.jp -Dhttps.proxyPort=8080 -Djavax.net.ssl.trustStore=cacerts
+set SBT_OPTS=-Xms512M -Xmx1024M -Xss1M -XX:MetaspaceSize=64M -XX:MaxMetaspaceSize=256M -XX:+CMSClassUnloadingEnabled
 
 @REM Checks if the command contains spaces to know if it should be wrapped in quotes or not
 set NON_SPACED_CMD=%_JAVACMD: =%
