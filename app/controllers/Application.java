@@ -10,15 +10,16 @@ import play.libs.ws.WSResponse;
 import play.mvc.Controller;
 import play.mvc.Http;
 import play.mvc.Result;
-import views.html.index;
-import views.html.accounts;
-import views.html.account;
+import views.html.*;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Application extends Controller {
 
@@ -42,18 +43,27 @@ public class Application extends Controller {
         }
     }
 
-    public CompletionStage<Result> accounts (String country) {
-        return force.getAuthInfo().thenCompose(authInfo -> 
-                force.getAccounts(authInfo, country, null)).thenApply( accountList ->
-                ok(accounts.render(accountList)));
+    public Result logout() {
+        try {
+            return redirect(force.getAuthInfo().get().instanceUrl + "/secur/logout.jsp");
+        } catch (InterruptedException | ExecutionException ex) {
+            Logger.getLogger(Application.class.getName()).log(Level.WARNING, null, ex);
+            return redirect(oauthCallbackUrl(request()));
+        }
     }
-    
-    public CompletionStage<Result> account (String id) {
-        return force.getAuthInfo().thenCompose(authInfo -> 
-                force.getAccounts(authInfo, null, id)).thenApply( accountList ->
-                ok(account.render(accountList)));
+
+    public CompletionStage<Result> accounts(String country) {
+        return force.getAuthInfo().thenCompose(authInfo
+                -> force.getAccounts(authInfo, country, null)).thenApply(accountList
+                -> ok(accounts.render(accountList)));
     }
-    
+
+    public CompletionStage<Result> account(String id) {
+        return force.getAuthInfo().thenCompose(authInfo
+                -> force.getAccounts(authInfo, null, id)).thenApply(accountList
+                -> ok(account.render(accountList)));
+    }
+
     @Singleton
     public static class Force {
 
@@ -63,7 +73,7 @@ public class Application extends Controller {
         @Inject
         Config config;
 
-        CompletableFuture<AuthInfo> token;
+        private CompletableFuture<AuthInfo> token;
 
         String consumerKey() {
             return config.getString("consumer.key");
@@ -133,8 +143,8 @@ public class Application extends Controller {
             CompletionStage<WSResponse> responsePromise = ws.url(authInfo.instanceUrl + "/services/data/v44.0/query/")
                     .addHeader("Authorization", "Bearer " + authInfo.accessToken)
                     .addQueryParameter("q", "SELECT Id, Name, Type, Industry, BillingCountry FROM Account"
-                    + ((country == null) || (country == "") ? "" : " where BillingCountry='" + country + "'")
-                    + (id == null ? "" : " where Id='" + id + "'"))
+                            + ((country == null) || (country.equals("")) ? "" : " where BillingCountry='" + country + "'")
+                            + (id == null ? "" : " where Id='" + id + "'"))
                     .get();
 
             return responsePromise.thenCompose(response -> {
