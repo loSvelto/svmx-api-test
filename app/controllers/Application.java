@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.typesafe.config.Config;
+import java.util.Date;
 import play.libs.Json;
 import play.libs.ws.WSClient;
 import play.libs.ws.WSResponse;
@@ -26,42 +27,65 @@ public class Application extends Controller {
     @Inject
     private Force force;
 
+    // Session cookies string constants
+    private static final String TOKEN   = "token";
+    private static final String URL     = "callbackURL";
+    private static final String LOGGED  = "logged";
+
+    // callback/redirect URL (this application's URL)
     private String oauthCallbackUrl(Http.Request request) {
         return (request.secure() ? "https" : "http") + "://" + request.host();
     }
 
+    // application entry point. Directs to sandbox login page if not logged in
     public Result index(String code) {
-        if (code == null) {
-            // start oauth
-            final String url = "https://test.salesforce.com/services/oauth2/authorize?response_type=code"
-                    + "&client_id=" + force.consumerKey()
-                    + "&redirect_uri=" + oauthCallbackUrl(request());
-            return redirect(url);
-        } else {
-            force.getToken(code, oauthCallbackUrl(request()));
+        if (session(LOGGED) == null) {  // new session
+            if (code == null) {
+                // request auth code
+                final String url = "https://test.salesforce.com/services/oauth2/authorize?response_type=code"
+                        + "&client_id=" + force.consumerKey()
+                        + "&redirect_uri=" + oauthCallbackUrl(request());
+                return redirect(url);
+            } else {
+                try // code received
+                {
+                    // get OAuth token and store to session
+                    Force.AuthInfo token = force.getToken(code, oauthCallbackUrl(request()))
+                            .toCompletableFuture().get();
+                    session().put(TOKEN, token.accessToken);
+                    session().put(URL, token.instanceUrl);
+                    session().put(LOGGED, new Date().toString());
+                    return ok(index.render());
+                } catch (InterruptedException | ExecutionException ex) {
+                    Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+                    return unauthorized("token error");
+                }
+            }
+        } else { // already logged in
             return ok(index.render());
         }
     }
 
     public Result logout() {
-        try {
-            return redirect(force.getAuthInfo().get().instanceUrl + "/secur/logout.jsp");
-        } catch (InterruptedException | ExecutionException ex) {
-            Logger.getLogger(Application.class.getName()).log(Level.WARNING, null, ex);
-            return redirect(oauthCallbackUrl(request()));
-        }
+        String logout = session(URL) + "/secur/logout.jsp"; // salesforce logout
+        force.revokeToken(getToken());
+        session().clear();
+        return redirect(logout);
     }
 
     public CompletionStage<Result> accounts(String country) {
-        return force.getAuthInfo().thenCompose(authInfo
-                -> force.getAccounts(authInfo, country, null)).thenApply(accountList
+        return force.getAccounts(getToken(), country, null).thenApply(accountList
                 -> ok(accounts.render(accountList)));
     }
 
     public CompletionStage<Result> account(String id) {
-        return force.getAuthInfo().thenCompose(authInfo
-                -> force.getAccounts(authInfo, null, id)).thenApply(accountList
+        return force.getAccounts(getToken(), null, id).thenApply(accountList
                 -> ok(account.render(accountList)));
+    }
+
+    // retrieve token and redirect URL from session
+    private Force.AuthInfo getToken() {
+        return new Force.AuthInfo(session(TOKEN), session(URL));
     }
 
     @Singleton
@@ -73,8 +97,6 @@ public class Application extends Controller {
         @Inject
         Config config;
 
-        private CompletableFuture<AuthInfo> token;
-
         String consumerKey() {
             return config.getString("consumer.key");
         }
@@ -83,7 +105,7 @@ public class Application extends Controller {
             return config.getString("consumer.secret");
         }
 
-        CompletionStage<Void> getToken(String code, String redirectUrl) {
+        CompletionStage<AuthInfo> getToken(String code, String redirectUrl) {
             final CompletionStage<WSResponse> responsePromise = ws.url("https://test.salesforce.com/services/oauth2/token")
                     .addQueryParameter("grant_type", "authorization_code")
                     .addQueryParameter("code", code)
@@ -92,18 +114,10 @@ public class Application extends Controller {
                     .addQueryParameter("redirect_uri", redirectUrl)
                     .execute(Http.HttpVerbs.POST);
 
-            responsePromise.thenCompose(response -> {
+            return responsePromise.thenCompose(response -> {
                 final JsonNode jsonNode = response.asJson();
-
-                token = CompletableFuture.completedFuture(Json.fromJson(jsonNode, AuthInfo.class));
-                return token;
-            }
-            );
-            return new CompletableFuture<>();
-        }
-
-        CompletableFuture<AuthInfo> getAuthInfo() {
-            return token;
+                return CompletableFuture.completedFuture(Json.fromJson(jsonNode, AuthInfo.class));
+            });
         }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
@@ -130,6 +144,16 @@ public class Application extends Controller {
 
             @JsonProperty("instance_url")
             public String instanceUrl;
+
+            public AuthInfo() {
+            }
+
+            ;
+            
+            private AuthInfo(String token, String url) {
+                this.accessToken = token;
+                this.instanceUrl = url;
+            }
         }
 
         public static class AuthException extends Exception {
@@ -159,6 +183,12 @@ public class Application extends Controller {
                 }
             });
         }
-    }
 
+        void revokeToken(AuthInfo authInfo) {
+            ws.url(authInfo.instanceUrl + "/services/oauth2/revoke")
+                    .addHeader("Content-Type", "application/x-www-form-urlencoded")
+                    .addQueryParameter("token", authInfo.accessToken).
+                    execute(Http.HttpVerbs.POST);
+        }
+    }
 }
