@@ -8,6 +8,10 @@ GET     /                           controllers.Application.index(code ?= null)
 GET     /accounts                   controllers.Application.accounts(country ?= null)
 
 GET     /account/:id                controllers.Application.account(id:String)
+GET     /edit_account/:id           controllers.Application.editAccount(id:String)
+
++nocsrf
+POST    /update_account             controllers.Application.updateAccount()
 
 GET     /logout                     controllers.Application.logout()
 
