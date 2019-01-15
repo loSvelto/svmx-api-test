@@ -1,10 +1,10 @@
 name := "quick-force"
 
-version := "1.0-SNAPSHOT"
+version := "1.0"
 
 lazy val root = (project in file(".")).enablePlugins(PlayJava)
 
-scalaVersion := "2.12.6"
+scalaVersion := "2.12.8"
 
 libraryDependencies ++= Seq(
   "org.webjars" %% "webjars-play" % "2.6.3",
@@ -16,13 +16,6 @@ libraryDependencies ++= Seq(
 
 routesGenerator := InjectedRoutesGenerator
 
-enablePlugins(AtomPlugin)
-
-atomPackages := Seq("heroku-tools")
-
-atomFilesToOpen := Seq("./", "README.md")
-
 TaskKey[Unit]("default") := {
   (run in Compile).toTask("").value
-  atom.value
 }
