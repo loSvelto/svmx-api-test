@@ -1,4 +1,4 @@
-@(accounts: List[Application.Force.Account])
+@(accounts: List[Account])
 
 @main {
 
@@ -12,7 +12,8 @@
     <tr><td><b>Type</b></td><td>@account.Type</td></tr>
     <tr><td><b>Industry</b></td><td>@account.Industry</td></tr>
     <tr><td><b>Country</b></td><td>@account.BillingCountry</td></tr>
-    }
+    
 </table>
-
+<a href="/edit_account/@account.Id">Edit</a>
+}
 }
