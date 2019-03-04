@@ -31,7 +31,7 @@ public class Application extends Controller {
 
     // callback/redirect URL (this application's URL)
     private String oauthCallbackUrl(Http.Request request) {
-        return (request.secure() ? "https" : "http") + "://" + request.host();
+        return (request.secure() ? "https://" : "http://") + request.host();
     }
 
     // application entry point/root address
@@ -42,22 +42,21 @@ public class Application extends Controller {
     protected Result login(Http.Request request, String login_redirect) {
         if (request.getQueryString("code") == null) {               // if first access
             flash("login_redirect", login_redirect);                // save initially requested URL
-            // request auth code
+                                                                    // request auth code
             final String url = "https://test.salesforce.com/services/oauth2/authorize?response_type=code"
                     + "&client_id=" + force.consumerKey()
                     + "&redirect_uri=" + oauthCallbackUrl(request());
             return redirect(url);                                   // re-access the application with the auth code
         } else {
-            try // code received
+            try                                                     // code received
             {
                 AuthInfo token = force.getToken(request.getQueryString("code"),
                         oauthCallbackUrl(request())).toCompletableFuture().get();
                 session().put(Const.TOKEN, token.accessToken);      // store token, callback URL (this application)
-                session().put(Const.URL, token.instanceUrl);        // and login timestamp to the session
-                session().put(Const.LOGGED, new Date().toString());
+                session().put(Const.URL, token.instanceUrl);        // and login timestamp to the session (can be useful
+                session().put(Const.LOGGED, new Date().toString()); // to implement a session timeout)
 
-                return redirect(flash().get("login_redirect"));     // redirect to the initially requested URL and
-                // cleanup the session
+                return redirect(flash().get("login_redirect"));     // redirect to the initially requested URL
             } catch (InterruptedException | ExecutionException ex) {
                 Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
                 return unauthorized("token error");
@@ -95,9 +94,8 @@ public class Application extends Controller {
         // read data from html form
         Form<Account> accountForm = formFactory.form(Account.class);
         Account account = accountForm.bindFromRequest().get();
-
         return force.updateAccount(getToken(), account).thenApply(response -> {
-            if (response.getStatus() == 204) {
+            if (response.getStatus() == 204) {                      // if successful, show the account
                 return redirect(controllers.routes.Application.account(account.Id));
             } else {
                 return badRequest(response.getBody());
